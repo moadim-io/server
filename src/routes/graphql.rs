@@ -1,28 +1,14 @@
-use async_graphql::{Context, EmptySubscription, InputObject, Object, Schema, SimpleObject};
+#[path = "../graphql_types.rs"]
+mod graphql_types;
+use graphql_types::{
+    CreateCronJobInput, GqlCronJob, GqlCronJobResponse, GqlHealth, JSON, UpdateCronJobInput,
+};
+
+use async_graphql::{Context, EmptySubscription, Object, Schema};
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::{response::Html, Extension};
 
 use crate::cron_jobs::{AppState, CronJob, CronJobResponse, CreateRequest, UpdateRequest};
-
-// Arbitrary JSON scalar backed by serde_json::Value.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct JSON(pub serde_json::Value);
-async_graphql::scalar!(JSON);
-
-// --- Output types ---
-
-#[derive(SimpleObject)]
-#[graphql(name = "CronJob")]
-struct GqlCronJob {
-    id: String,
-    schedule: String,
-    handler: String,
-    metadata: JSON,
-    enabled: bool,
-    source: String,
-    created_at: u64,
-    updated_at: u64,
-}
 
 impl From<CronJob> for GqlCronJob {
     fn from(j: CronJob) -> Self {
@@ -37,20 +23,6 @@ impl From<CronJob> for GqlCronJob {
             updated_at: j.updated_at,
         }
     }
-}
-
-#[derive(SimpleObject)]
-#[graphql(name = "CronJobResponse")]
-struct GqlCronJobResponse {
-    id: String,
-    schedule: String,
-    handler: String,
-    metadata: JSON,
-    enabled: bool,
-    source: String,
-    created_at: u64,
-    updated_at: u64,
-    handler_registered: bool,
 }
 
 impl From<CronJobResponse> for GqlCronJobResponse {
@@ -69,39 +41,11 @@ impl From<CronJobResponse> for GqlCronJobResponse {
     }
 }
 
-#[derive(SimpleObject)]
-#[graphql(name = "Health")]
-struct GqlHealth {
-    status: String,
-    uptime_secs: u64,
-    running: bool,
-}
-
-// --- Input types ---
-
-#[derive(InputObject)]
-struct CreateCronJobInput {
-    schedule: String,
-    handler: String,
-    metadata: Option<JSON>,
-    #[graphql(default = true)]
-    enabled: bool,
-}
-
-#[derive(InputObject)]
-struct UpdateCronJobInput {
-    schedule: Option<String>,
-    handler: Option<String>,
-    metadata: Option<JSON>,
-    enabled: Option<bool>,
-}
-
-// --- Query ---
-
-pub struct QueryRoot;
+pub struct Query;
 
 #[Object]
-impl QueryRoot {
+impl Query {
+    /// List all managed cron jobs with handler registration status.
     async fn cron_jobs(&self, ctx: &Context<'_>) -> Vec<GqlCronJobResponse> {
         let state = ctx.data_unchecked::<AppState>();
         crate::cron_jobs::svc_list(&state.store)
@@ -111,6 +55,7 @@ impl QueryRoot {
             .collect()
     }
 
+    /// Get a managed cron job by ID; returns null if not found.
     async fn cron_job(&self, ctx: &Context<'_>, id: String) -> Option<GqlCronJobResponse> {
         let state = ctx.data_unchecked::<AppState>();
         crate::cron_jobs::svc_get(&state.store, &id)
@@ -119,6 +64,7 @@ impl QueryRoot {
             .map(GqlCronJobResponse::from)
     }
 
+    /// List read-only system cron jobs from crontab and /etc/cron.d.
     async fn system_cron_jobs(&self) -> Vec<GqlCronJob> {
         crate::system_cron::read_all()
             .into_iter()
@@ -126,6 +72,7 @@ impl QueryRoot {
             .collect()
     }
 
+    /// Server health and uptime.
     async fn health(&self, ctx: &Context<'_>) -> GqlHealth {
         let &uptime_start = ctx.data_unchecked::<u64>();
         let now = std::time::SystemTime::now()
@@ -136,12 +83,11 @@ impl QueryRoot {
     }
 }
 
-// --- Mutation ---
-
-pub struct MutationRoot;
+pub struct Mutation;
 
 #[Object]
-impl MutationRoot {
+impl Mutation {
+    /// Create a new managed cron job.
     async fn create_cron_job(
         &self,
         ctx: &Context<'_>,
@@ -159,6 +105,7 @@ impl MutationRoot {
             .map_err(|e| async_graphql::Error::new(e.to_string()))
     }
 
+    /// Update one or more fields of an existing managed cron job.
     async fn update_cron_job(
         &self,
         ctx: &Context<'_>,
@@ -177,6 +124,7 @@ impl MutationRoot {
             .map_err(|e| async_graphql::Error::new(e.to_string()))
     }
 
+    /// Delete a managed cron job by ID; returns the deleted job ID.
     async fn delete_cron_job(
         &self,
         ctx: &Context<'_>,
@@ -189,18 +137,14 @@ impl MutationRoot {
     }
 }
 
-// --- Schema ---
-
-pub type MoadimSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
+pub type MoadimSchema = Schema<Query, Mutation, EmptySubscription>;
 
 pub fn build_schema(state: AppState, uptime_start: u64) -> MoadimSchema {
-    Schema::build(QueryRoot, MutationRoot, EmptySubscription)
+    Schema::build(Query, Mutation, EmptySubscription)
         .data(state)
         .data(uptime_start)
         .finish()
 }
-
-// --- Axum handlers ---
 
 pub async fn handler(
     Extension(schema): Extension<MoadimSchema>,
