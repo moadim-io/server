@@ -146,40 +146,6 @@ Endpoint: `http://localhost:5784/graphql`
 
 Full schema SDL is auto-generated at build time — see [`apis/graphql.graphql`](apis/graphql.graphql).
 
-### Example queries
-
-```graphql
-# list all jobs with handler registration status
-query {
-  cronJobs {
-    id schedule handler enabled handlerRegistered
-  }
-}
-
-# create a job
-mutation {
-  createCronJob(input: {
-    schedule: "0 30 9 * * 1-5 *"
-    handler:  "send-report"
-    metadata: { recipient: "team@example.com" }
-  }) {
-    id schedule
-  }
-}
-
-# disable a job
-mutation {
-  updateCronJob(id: "...", input: { enabled: false }) {
-    id enabled
-  }
-}
-
-# delete a job
-mutation {
-  deleteCronJob(id: "...")
-}
-```
-
 ## MCP usage
 
 The server exposes an MCP endpoint at `http://localhost:5784/mcp`. Connect any MCP-compatible client.
