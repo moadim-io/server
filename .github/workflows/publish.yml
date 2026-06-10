@@ -17,13 +17,12 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Cache cargo registry
+      - name: Cache cargo registry (registry only, not target)
         uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
@@ -32,7 +31,17 @@ jobs:
 
       - name: Build UI
         run: cargo check
-        # Runs build.rs with trunk available → inlines Yew UI → writes ui/prebuilt.html
+        # Runs build.rs fresh (no target cache) → trunk inlines Yew UI → writes ui/prebuilt.html
+
+      - name: Verify prebuilt UI was generated
+        run: test -s ui/prebuilt.html || (echo "ui/prebuilt.html missing or empty" && exit 1)
+
+      - name: Commit prebuilt UI so cargo publish includes it
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add ui/prebuilt.html
+          git commit -m "ci: bundle prebuilt UI"
 
       - name: Verify tag matches Cargo.toml version
         run: |
