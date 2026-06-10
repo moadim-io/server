@@ -14,8 +14,9 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::paths::job_toml_path;
 use crate::storage::{remove_job_dir, write_job};
-use crate::util::{metadata_schema, now_secs};
+use crate::util::now_secs;
 
 /// A persisted cron job with scheduling and metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, utoipa::ToSchema)]

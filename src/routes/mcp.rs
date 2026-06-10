@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::cron_jobs::{self, CronStore, HandlerRegistry, CreateRequest, UpdateRequest};
-use crate::util::{metadata_schema, now_secs};
+use crate::util::now_secs;
 
 /// MCP server handler that exposes cron-job management as MCP tools.
 #[derive(Clone)]
