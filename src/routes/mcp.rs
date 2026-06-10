@@ -1,7 +1,7 @@
 //! MCP server handler exposing cron-job tools over the Model Context Protocol.
 
 use rmcp::{
-    handler::server::{router::tool::ToolRouter, wrapper::Parameters},
+    handler::server::wrapper::Parameters,
     model::{CallToolResult, Content},
     tool, tool_router,
 };
@@ -20,9 +20,6 @@ pub struct MoadimMcp {
     handlers: HandlerRegistry,
     /// Unix timestamp (seconds) recorded at server startup.
     uptime_start: u64,
-    /// Generated tool router wiring method names to the MCP protocol.
-    #[allow(dead_code)]
-    tool_router: ToolRouter<MoadimMcp>,
 }
 
 /// Input for the `echo` MCP tool.
@@ -75,7 +72,6 @@ impl MoadimMcp {
             store,
             handlers,
             uptime_start,
-            tool_router: Self::tool_router(),
         }
     }
 
