@@ -9,8 +9,8 @@ use std::path::{Path, PathBuf};
 /// include_str!(concat!(env!("OUT_DIR"), "/index.html"))
 /// ```
 ///
-/// If trunk is absent or the build is skipped, we fall back to copying
-/// `src/ui/index.html` (the legacy plain-HTML version).
+/// If trunk is absent or the build is skipped, a placeholder is written.
+/// Install trunk with: `cargo install trunk`
 pub fn build(manifest_dir: &str) {
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");
     let output = Path::new(&out_dir).join("index.html");
@@ -30,13 +30,8 @@ pub fn build(manifest_dir: &str) {
         println!("cargo:warning=trunk build failed or produced no dist; using legacy HTML");
     }
 
-    // Fallback: copy the legacy plain-HTML file
-    let fallback = Path::new(manifest_dir).join("src/ui/index.html");
-    if fallback.exists() {
-        std::fs::copy(&fallback, &output).expect("failed to copy fallback index.html");
-    } else {
-        std::fs::write(&output, PLACEHOLDER_HTML).expect("failed to write placeholder HTML");
-    }
+    // No Trunk build: write placeholder directing dev to build the Yew UI
+    std::fs::write(&output, PLACEHOLDER_HTML).expect("failed to write placeholder HTML");
 }
 
 fn emit_rerun_triggers(ui_dir: &Path) {
