@@ -21,6 +21,7 @@ pub struct MoadimMcp {
     /// Unix timestamp (seconds) recorded at server startup.
     uptime_start: u64,
     /// Generated tool router wiring method names to the MCP protocol.
+    #[allow(dead_code)]
     tool_router: ToolRouter<MoadimMcp>,
 }
 

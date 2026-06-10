@@ -87,6 +87,7 @@ impl axum::extract::FromRef<AppState> for CronStore {
 }
 
 /// Create an empty [`CronStore`].
+#[cfg(test)]
 pub fn new_store() -> CronStore {
     Arc::new(Mutex::new(HashMap::new()))
 }

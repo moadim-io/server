@@ -16,8 +16,6 @@ pub enum AppError {
     BadRequest(String),
     /// 404 Not Found.
     NotFound,
-    /// 409 Conflict with a human-readable description.
-    Conflict(String),
 }
 
 impl fmt::Display for AppError {
@@ -26,7 +24,6 @@ impl fmt::Display for AppError {
             AppError::Internal => write!(f, "internal server error"),
             AppError::BadRequest(msg) => write!(f, "bad request: {}", msg),
             AppError::NotFound => write!(f, "not found"),
-            AppError::Conflict(msg) => write!(f, "conflict: {}", msg),
         }
     }
 }
@@ -37,7 +34,6 @@ impl IntoResponse for AppError {
             AppError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::NotFound => StatusCode::NOT_FOUND,
-            AppError::Conflict(_) => StatusCode::CONFLICT,
         };
         (
             status,
@@ -47,5 +43,3 @@ impl IntoResponse for AppError {
     }
 }
 
-/// Convenience alias for `Result<T, AppError>`.
-pub type AppResult<T> = Result<T, AppError>;
