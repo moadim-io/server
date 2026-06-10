@@ -13,6 +13,8 @@ mod routes;
 #[cfg(not(target_arch = "wasm32"))]
 mod paths;
 #[cfg(not(target_arch = "wasm32"))]
+mod storage;
+#[cfg(not(target_arch = "wasm32"))]
 mod system_cron;
 
 #[cfg(target_arch = "wasm32")]
@@ -26,6 +28,6 @@ fn main() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let store = cron_jobs::new_store();
+    let store = storage::load_store();
     routes::http::run(store).await
 }
