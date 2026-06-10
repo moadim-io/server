@@ -8,6 +8,24 @@ Rust server that exposes the same functionality over two protocols simultaneousl
 
 Both run on the same port.
 
+## Installation
+
+```sh
+cargo install moadim
+```
+
+If `moadim` is not found after install, add Cargo's bin directory to your PATH:
+
+```sh
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+```
+
+Then run:
+
+```sh
+moadim
+```
+
 ## Features
 
 - Same cron-job, health, and echo logic reachable via REST and MCP

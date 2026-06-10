@@ -31,7 +31,7 @@ utoipa = { version = "5", features = ["axum_extras"] }
 uuid = { version = "1", features = ["v4"] }
 
 [[bin]]
-name = "server"
+name = "moadim"
 path = "src/main.rs"
 
 [build-dependencies]
