@@ -37,6 +37,8 @@ pub struct CronJob {
     pub created_at: u64,
     /// Unix timestamp (seconds) when the job was last updated.
     pub updated_at: u64,
+    /// Unix timestamp (seconds) when the job was last manually triggered, if ever.
+    pub last_triggered_at: Option<u64>,
 }
 
 /// A [`CronJob`] enriched with a flag indicating whether its handler is registered.
@@ -162,6 +164,7 @@ pub fn svc_create(store: &CronStore, handlers: &HandlerRegistry, req: CreateRequ
         source: "managed".to_string(),
         created_at: now,
         updated_at: now,
+        last_triggered_at: None,
     };
     write_job(&job).map_err(|_| AppError::Internal)?;
     store.lock().unwrap().insert(job.id.clone(), job.clone());
@@ -199,6 +202,17 @@ pub fn svc_delete(store: &CronStore, handlers: &HandlerRegistry, id: &str) -> Re
     let job = store.lock().unwrap().remove(id).ok_or(AppError::NotFound)?;
     remove_job_dir(id).map_err(|_| AppError::Internal)?;
     Ok(CronJobResponse::from_job(job, handlers))
+}
+
+/// Record a manual trigger for `id`, updating `last_triggered_at` in-store and on disk.
+pub fn svc_trigger(store: &CronStore, id: &str) -> Result<CronJob, AppError> {
+    let mut lock = store.lock().unwrap();
+    let job = lock.get_mut(id).ok_or(AppError::NotFound)?;
+    job.last_triggered_at = Some(now_secs());
+    let job = job.clone();
+    drop(lock);
+    write_job(&job).map_err(|_| AppError::Internal)?;
+    Ok(job)
 }
 
 // --- Axum HTTP handlers ---
@@ -256,6 +270,17 @@ pub async fn delete(
     Ok(Json(svc_delete(&state.store, &state.handlers, &id)?))
 }
 
+/// `POST /cron-jobs/{id}/trigger` — manually trigger a cron job outside its schedule.
+#[utoipa::path(post, path = "/cron-jobs/{id}/trigger",
+    params(("id" = String, Path, description = "Cron job UUID")),
+    responses((status = 200, body = CronJob), (status = 404, description = "Not found")))]
+pub async fn trigger(
+    State(store): State<CronStore>,
+    Path(id): Path<String>,
+) -> Result<Json<CronJob>, AppError> {
+    Ok(Json(svc_trigger(&store, &id)?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -271,6 +296,7 @@ mod tests {
             source: "managed".to_string(),
             created_at: 0,
             updated_at: 0,
+            last_triggered_at: None,
         };
         store.lock().unwrap().insert(id.to_string(), job);
         store
@@ -299,6 +325,7 @@ mod tests {
             source: "managed".to_string(),
             created_at: 1000,
             updated_at: 1000,
+            last_triggered_at: None,
         };
         let json = serde_json::to_string(&job).unwrap();
         assert!(json.contains("\"id\":\"abc\""));
@@ -314,7 +341,7 @@ mod tests {
 
     #[test]
     fn svc_get_returns_not_found() {
-        assert!(svc_get(&new_store(), "missing").is_err());
+        assert!(svc_get(&new_store(), &new_registry(), "missing").is_err());
     }
 
     #[test]
@@ -322,7 +349,7 @@ mod tests {
         let store = make_store_with("test-id");
         // remove directly from store (skip fs in unit test)
         store.lock().unwrap().remove("test-id");
-        assert!(svc_get(&store, "test-id").is_err());
+        assert!(svc_get(&store, &new_registry(), "test-id").is_err());
     }
 
     #[test]
@@ -332,6 +359,6 @@ mod tests {
             let mut lock = store.lock().unwrap();
             lock.get_mut("test-id").unwrap().enabled = false;
         }
-        assert!(!svc_get(&store, "test-id").unwrap().enabled);
+        assert!(!svc_get(&store, &new_registry(), "test-id").unwrap().job.enabled);
     }
 }

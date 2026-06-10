@@ -21,6 +21,8 @@ struct JobToml {
     created_at: Option<u64>,
     /// Unix last-updated timestamp.
     updated_at: Option<u64>,
+    /// Unix timestamp of last manual trigger.
+    last_triggered_at: Option<u64>,
     /// Arbitrary metadata key/value pairs.
     #[serde(default)]
     metadata: toml::Table,
@@ -57,12 +59,13 @@ fn json_to_toml_table(val: &serde_json::Value) -> toml::Table {
 fn load_job_from_dir(id: &str) -> Option<CronJob> {
     let base = read_job_toml(&job_toml_path(id))?;
     let local = read_job_toml(&job_local_toml_path(id));
-    let (schedule, handler, enabled, created_at, updated_at, mut meta) = (
+    let (schedule, handler, enabled, created_at, updated_at, last_triggered_at, mut meta) = (
         local.as_ref().and_then(|l| l.schedule.clone()).or(base.schedule)?,
         local.as_ref().and_then(|l| l.handler.clone()).or(base.handler)?,
         local.as_ref().and_then(|l| l.enabled).or(base.enabled).unwrap_or(true),
         local.as_ref().and_then(|l| l.created_at).or(base.created_at).unwrap_or(0),
         local.as_ref().and_then(|l| l.updated_at).or(base.updated_at).unwrap_or(0),
+        local.as_ref().and_then(|l| l.last_triggered_at).or(base.last_triggered_at),
         base.metadata,
     );
     if let Some(local_meta) = local.as_ref().map(|l| &l.metadata) {
@@ -78,6 +81,7 @@ fn load_job_from_dir(id: &str) -> Option<CronJob> {
         source: "managed".to_string(),
         created_at,
         updated_at,
+        last_triggered_at,
         metadata: metadata_to_json(&meta),
     })
 }
@@ -98,6 +102,7 @@ pub fn write_job(job: &CronJob) -> std::io::Result<()> {
         enabled: Some(job.enabled),
         created_at: Some(job.created_at),
         updated_at: Some(job.updated_at),
+        last_triggered_at: job.last_triggered_at,
         metadata: json_to_toml_table(&job.metadata),
     };
     let text = toml::to_string_pretty(&toml_job)
